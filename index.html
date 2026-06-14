@@ -84,25 +84,33 @@ login.onclick = () => {
     window.location.href = `${backend}/login`;
 };
 
-/* ---------------- HANDLE REDIRECT ---------------- */
-window.onload = () => {
+/* ---------------- SESSION RESTORE (NO URL TOKENS) ---------------- */
+window.onload = async () => {
     const params = new URLSearchParams(window.location.search);
-    const t = params.get("access_token");
+    const sessionId = params.get("session");
 
-    if (t) {
-        token = t;
+    if (sessionId) {
+        const res = await fetch(`${backend}/session/${sessionId}`);
+        const data = await res.json();
 
-        login.textContent = "Connected 🎧";
+        token = data.access_token;
 
-        input.disabled = false;
-        send.disabled = false;
-
-        addMsg("System", "Spotify connected 🎧", "ai");
-
-        // FIX: prevent GitHub 404 issues
         window.history.replaceState({}, document.title, "/Songify-Ai/");
+
+        initApp();
     }
 };
+
+function initApp() {
+    if (!token) return;
+
+    login.textContent = "Connected 🎧";
+
+    input.disabled = false;
+    send.disabled = false;
+
+    addMsg("System", "Spotify connected 🎧", "ai");
+}
 
 /* ---------------- SEND ---------------- */
 send.onclick = handle;
@@ -145,7 +153,7 @@ async function search(q) {
 /* ---------------- ADD TRACK ---------------- */
 window.add = (uri) => {
     if (!tracks.includes(uri)) tracks.push(uri);
-    addMsg("System", "Added track 🎧", "ai");
+    addMsg("System", "Added 🎧", "ai");
 };
 
 /* ---------------- CREATE PLAYLIST ---------------- */
