@@ -1,55 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Songify AI</title>
 
 <style>
-body {
-    margin: 0;
-    font-family: Arial;
-    background: #121212;
-    color: white;
-}
-
-.container {
-    max-width: 500px;
-    margin: auto;
-    padding: 20px;
-}
-
-button {
-    cursor: pointer;
-}
-
-.msg {
-    padding: 10px;
-    margin: 8px 0;
-    border-radius: 6px;
-}
-
-.ai { background: #1e1e1e; border-left: 3px solid #1DB954; }
-.user { background: #2a2a2a; text-align: right; }
-
-input {
-    width: 100%;
-    padding: 10px;
-    margin-top: 10px;
-    background: #2a2a2a;
-    border: none;
-    color: white;
-}
-
-.send {
-    margin-top: 10px;
-    padding: 10px;
-    width: 100%;
-    background: #1DB954;
-    border: none;
-    font-weight: bold;
-}
+body { background:#121212; color:white; font-family:Arial; }
+.container { max-width:500px; margin:auto; padding:20px; }
+.msg { margin:8px 0; padding:10px; border-radius:6px; }
+.ai { background:#1e1e1e; border-left:3px solid #1DB954; }
+.user { background:#2a2a2a; text-align:right; }
+button { cursor:pointer; }
+input { width:100%; padding:10px; background:#2a2a2a; border:none; color:white; }
+.send { margin-top:10px; width:100%; padding:10px; background:#1DB954; border:none; }
 </style>
+
 </head>
 
 <body>
@@ -62,8 +27,8 @@ input {
 
 <div id="chat"></div>
 
-<input id="input" disabled placeholder="Search songs or type 'create playlist'">
-<button class="send" id="send" disabled>Send</button>
+<input id="input" disabled placeholder="Search songs or create playlist">
+<button id="send" class="send" disabled>Send</button>
 
 </div>
 
@@ -84,24 +49,21 @@ login.onclick = () => {
     window.location.href = `${backend}/login`;
 };
 
-/* ---------------- SESSION RESTORE (NO URL TOKENS) ---------------- */
+/* ---------------- INIT SESSION (NO URL, NO PARAMS) ---------------- */
 window.onload = async () => {
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get("session");
-
-    if (sessionId) {
-        const res = await fetch(`${backend}/session/${sessionId}`);
+    try {
+        const res = await fetch(`${backend}/session`);
         const data = await res.json();
 
         token = data.access_token;
 
-        window.history.replaceState({}, document.title, "/Songify-Ai/");
-
-        initApp();
+        init();
+    } catch {
+        console.log("No active session");
     }
 };
 
-function initApp() {
+function init() {
     if (!token) return;
 
     login.textContent = "Connected 🎧";
@@ -150,13 +112,13 @@ async function search(q) {
     });
 }
 
-/* ---------------- ADD TRACK ---------------- */
+/* ---------------- ADD ---------------- */
 window.add = (uri) => {
     if (!tracks.includes(uri)) tracks.push(uri);
     addMsg("System", "Added 🎧", "ai");
 };
 
-/* ---------------- CREATE PLAYLIST ---------------- */
+/* ---------------- PLAYLIST ---------------- */
 async function createPlaylist() {
     const res = await fetch(`${backend}/create-playlist`, {
         method: "POST",
