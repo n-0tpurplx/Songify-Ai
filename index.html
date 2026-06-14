@@ -6,104 +6,47 @@
 <title>Songify AI</title>
 
 <style>
-:root {
-    --spotify-green: #1DB954;
-    --bg-color: #121212;
-    --card-bg: #181818;
-    --text-main: #ffffff;
-    --text-sub: #b3b3b3;
-}
-
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-}
-
 body {
-    background: var(--bg-color);
-    color: var(--text-main);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    margin: 0;
+    font-family: Arial;
+    background: #121212;
+    color: white;
 }
 
-.app-container {
-    width: 480px;
-    height: 650px;
-    background: var(--card-bg);
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid #2a2a2a;
+.container {
+    max-width: 500px;
+    margin: auto;
+    padding: 20px;
 }
 
-.app-header {
-    padding: 14px;
-    display: flex;
-    justify-content: space-between;
-    border-bottom: 1px solid #2a2a2a;
-}
-
-.btn-auth {
-    background: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-weight: bold;
+button {
     cursor: pointer;
-}
-
-.chat-area {
-    flex: 1;
-    padding: 12px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
 }
 
 .msg {
     padding: 10px;
+    margin: 8px 0;
     border-radius: 6px;
-    font-size: 14px;
 }
 
-.msg-user {
-    background: #2a2a2a;
-    align-self: flex-end;
-}
-
-.msg-ai {
-    background: #202020;
-    border-left: 3px solid var(--spotify-green);
-}
-
-.input-area {
-    display: flex;
-    padding: 10px;
-    border-top: 1px solid #2a2a2a;
-    gap: 8px;
-}
+.ai { background: #1e1e1e; border-left: 3px solid #1DB954; }
+.user { background: #2a2a2a; text-align: right; }
 
 input {
-    flex: 1;
+    width: 100%;
     padding: 10px;
-    border: none;
-    border-radius: 6px;
+    margin-top: 10px;
     background: #2a2a2a;
+    border: none;
     color: white;
-    outline: none;
 }
 
-button.send {
-    background: var(--spotify-green);
+.send {
+    margin-top: 10px;
+    padding: 10px;
+    width: 100%;
+    background: #1DB954;
     border: none;
-    padding: 10px 14px;
-    border-radius: 6px;
-    cursor: pointer;
     font-weight: bold;
 }
 </style>
@@ -111,43 +54,37 @@ button.send {
 
 <body>
 
-<div class="app-container">
+<div class="container">
 
-    <div class="app-header">
-        <div>Songify AI</div>
-        <button id="auth-btn" class="btn-auth">Link Spotify</button>
-    </div>
+<h2>Songify AI 🎧</h2>
 
-    <div id="chat" class="chat-area">
-        <div class="msg msg-ai">
-            Link Spotify to start searching and building playlists 🎧
-        </div>
-    </div>
+<button id="login">Login with Spotify</button>
 
-    <div class="input-area">
-        <input id="input" placeholder="Search songs or type 'create playlist'" disabled />
-        <button id="send" class="send" disabled>Send</button>
-    </div>
+<div id="chat"></div>
+
+<input id="input" disabled placeholder="Search songs or type 'create playlist'">
+<button class="send" id="send" disabled>Send</button>
 
 </div>
 
 <script>
-const backendURL = "https://sai-be.onrender.com";
 
-const authBtn = document.getElementById("auth-btn");
+const backend = "https://sai-be.onrender.com";
+
+let token = null;
+let tracks = [];
+
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const send = document.getElementById("send");
-
-let token = null;
-let selectedTracks = [];
+const login = document.getElementById("login");
 
 /* ---------------- LOGIN ---------------- */
-authBtn.onclick = () => {
-    window.location.href = `${backendURL}/login`;
+login.onclick = () => {
+    window.location.href = `${backend}/login`;
 };
 
-/* ---------------- HANDLE CALLBACK TOKEN ---------------- */
+/* ---------------- HANDLE REDIRECT ---------------- */
 window.onload = () => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("access_token");
@@ -155,42 +92,38 @@ window.onload = () => {
     if (t) {
         token = t;
 
-        authBtn.textContent = "Connected";
-        authBtn.style.background = "#2a2a2a";
-        authBtn.style.color = "#b3b3b3";
+        login.textContent = "Connected 🎧";
 
         input.disabled = false;
         send.disabled = false;
 
         addMsg("System", "Spotify connected 🎧", "ai");
 
-        window.history.replaceState({}, document.title, "/");
+        // FIX: prevent GitHub 404 issues
+        window.history.replaceState({}, document.title, "/Songify-Ai/");
     }
 };
 
 /* ---------------- SEND ---------------- */
-send.onclick = handleSend;
-input.addEventListener("keypress", e => {
-    if (e.key === "Enter") handleSend();
-});
+send.onclick = handle;
 
-async function handleSend() {
+async function handle() {
     const text = input.value.trim();
     if (!text) return;
 
     addMsg("You", text, "user");
     input.value = "";
 
-    if (text.toLowerCase().includes("create playlist")) {
+    if (text.includes("create playlist")) {
         return createPlaylist();
     }
 
-    searchSongs(text);
+    search(text);
 }
 
 /* ---------------- SEARCH ---------------- */
-async function searchSongs(q) {
-    const res = await fetch(`${backendURL}/search?q=${encodeURIComponent(q)}`, {
+async function search(q) {
+    const res = await fetch(`${backend}/search?q=${q}`, {
         headers: {
             Authorization: `Bearer ${token}`
         }
@@ -198,66 +131,49 @@ async function searchSongs(q) {
 
     const data = await res.json();
 
-    if (!data.tracks?.items) {
-        addMsg("AI", "No results found 😭", "ai");
-        return;
-    }
-
-    data.tracks.items.forEach(track => {
+    data.tracks.items.forEach(t => {
         const div = document.createElement("div");
-        div.className = "msg msg-ai";
-
+        div.className = "msg ai";
         div.innerHTML = `
-            🎵 <b>${track.name}</b><br>
-            ${track.artists[0].name}<br>
-            <button onclick="addTrack('${track.uri}')">➕ Add</button>
+            🎵 ${t.name} - ${t.artists[0].name}
+            <br><button onclick="add('${t.uri}')">Add</button>
         `;
-
         chat.appendChild(div);
     });
-
-    chat.scrollTop = chat.scrollHeight;
 }
 
 /* ---------------- ADD TRACK ---------------- */
-window.addTrack = function(uri) {
-    if (!selectedTracks.includes(uri)) {
-        selectedTracks.push(uri);
-        addMsg("System", "Track added 🎧", "ai");
-    }
+window.add = (uri) => {
+    if (!tracks.includes(uri)) tracks.push(uri);
+    addMsg("System", "Added track 🎧", "ai");
 };
 
 /* ---------------- CREATE PLAYLIST ---------------- */
 async function createPlaylist() {
-    if (selectedTracks.length === 0) {
-        addMsg("AI", "No tracks selected 😭", "ai");
-        return;
-    }
-
-    const res = await fetch(`${backendURL}/create-playlist`, {
+    const res = await fetch(`${backend}/create-playlist`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ tracks: selectedTracks })
+        body: JSON.stringify({ tracks })
     });
 
     const data = await res.json();
 
-    addMsg("AI", `Playlist created 🎶 ${data.external_url}`, "ai");
+    addMsg("AI", "Playlist created 🎶 " + data.external_url, "ai");
 
-    selectedTracks = [];
+    tracks = [];
 }
 
 /* ---------------- UI ---------------- */
 function addMsg(sender, text, type) {
     const div = document.createElement("div");
-    div.className = `msg msg-${type}`;
+    div.className = "msg " + type;
     div.textContent = text;
     chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
 }
+
 </script>
 
 </body>
